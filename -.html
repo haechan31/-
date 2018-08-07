@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=0, user-scalable=no" />
+  <link rel="stylesheet" href="style.css">
+  <title>지구방위사령부</title>
+  <style>
+  canvas
+  { border:1px solid #d3d3d3;
+    background-color: black;}
+  </style>
+</head>
+<body onload="startGame()">
+<canvas id = "myCanvas" width = "480" height="800"></canvas>
+<script>
+
+var stage = 1; // 스테이지 변환
+var startmenu;
+var gameover;
+var barrier;
+var score = 0;
+var angles = [];
+var GBSgun;
+var GBShp = 100;
+var GBShppic;
+var hpbar;
+var skill = [];
+var gun1 = [];
+var back1;
+var back2;
+var myObstacles = [];
+var myObstacles2 = [];
+var myObstacles3 = [];
+var myObstacles4 = [];
+var myObstacles2bullet = [];
+var myObstacles4bullet = [];
+// 변수 지정
+
+function startGame() {
+  startmenu = new picture(480,800,"landscape.jpg",0,0,"image");
+  gameover = new picture(480,800,"gameover.jpg",0,0,"image");
+  barrier = new picture(480, 50, "barrier.png",0,430,"image");
+  GBShppic = new picture(100, 50, "hp.png",200,730,"image");
+  hpbar = new picture(94, 21, "hpbar.jpg",202,759,"image");
+  back1 = new picture(40,40,"back.jpg",40,500,"image");
+  back2 = new picture(40,40,"back.jpg",40,580,"image");
+  backgroundlandscape = new picture(480,130,"land1.png",0,670,"image");
+  bgGBS = new picturehp(160,130,"GBS.png",160,597,"image", 100);
+  GBSgun = new component(20,80,"gun.png",235,610,"image");
+  Heal = new picturehp(200,200,"heal.jpg",100,300,"image", 1);
+  myGameArea.start();
+} // 게임 스타트
+
+var myGameArea = {
+  canvas : document.getElementById("myCanvas"),
+  start : function() {
+    this.context = this.canvas.getContext("2d");
+    document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+    this.frameNo = 0;
+    this.interval = setInterval(updateGameArea, 20);
+
+
+    window.addEventListener('keydown',function(e){e.preventDefault();
+    myGameArea.keys=(myGameArea.keys||[]);
+    myGameArea.keys[e.keyCode] = (e.type == "keydown");
+    })
+    window.addEventListener('keyup',function (e) {
+    myGameArea.keys[e.keyCode] = (e.type == "keydown");
+    })
+    window.addEventListener('click', function (e) {
+            myGameArea.x = e.layerX;
+            myGameArea.y = e.layerY;
+            console.log({x: e.layerX, y: e.layerY});
+    })
+  }, // 이벤트 지정
+
+
+  clear : function() {
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  },
+  stop : function() {
+      clearInterval(this.interval);
+  }
+} // 캔버스 그리고 업데이트하기
+
+function drawScore() {
+ ctx = myGameArea.context;
+ ctx.font = "16px Arial";
+ ctx.fillStyle = "white";
+ ctx.fillText("점수: " + score, 20, 40);
+} // 점수그리기
+
+
+function component (width, height, color, x, y, type)
+{
+  this.type = type;
+  this.image = new Image();
+  this.image.src = color;
+  this.width = width;
+  this.height = height;
+  this.speed = 0;
+  this.angle = 0;
+  this.moveAngle = 0;
+  this.x = x;
+  this.y = y;
+  this.update =function()
+  {
+    ctx = myGameArea.context;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.angle);
+    ctx.fillStyle = color;
+    ctx.drawImage(this.image,this.width/-2,this.height/-2,this.width,this.height);
+    ctx.restore();
+  }
+  this.newPos = function()
+  {
+    this.angle += this.moveAngle*Math.PI/180;
+    this.x += this.speed*Math.sin(this.angle);
+    this.y -= this.speed*Math.cos(this.angle);
+  }
+} // 각도가 돌아가는 총 개체
+function maxhp(){
+  if (GBShp >= 100) {
+    GBShp = 100;
+  }
+}
+function sound(src) {
+    this.sound = document.createElement("audio");
+    this.sound.src = src;
+    this.sound.setAttribute("preload", "auto");
+    this.sound.setAttribute("controls", "none");
+    this.sound.style.display = "none";
+    document.body.appendChild(this.sound);
+    this.play = function(){
+        this.sound.play();
+    }
+    this.stop = function(){
+        this.sound.pause();
+    }
+}
+
+function picture(width, height, color, x, y, type, skill) {
+    this.type = type;
+    this.image = new Image();
+    this.image.src = color;
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;
+    this.skill = skill;
+    this.x = x;
+    this.y = y;
+    this.update = function() {
+        ctx = myGameArea.context;
+        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        }
+} // 각도 스피드 다 필요 없는 그림 그리기, 아마 배경과 적 및 총알은 구분해서 만들어야 할수도 있음.
+
+function picturehp(width, height, color, x, y, type, hp) {
+    this.type = type;
+    this.image = new Image();
+    this.image.src = color;
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;
+    this.hp = hp;
+    this.x = x;
+    this.y = y;
+    this.update = function() {
+        ctx = myGameArea.context;
+        if (this.hp > 0 & this.x >=0 & this.y >= 0 & this.x <= 480 & this.y <= 800) {
+        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        }
+    }
+} //구분해서 만들어야 할수도 있음.
+
+function bullet(width, height, color, x, y, type, hp) {
+    this.type = type;
+    this.image = new Image();
+    this.image.src = color;
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;
+    this.hp = hp;
+    this.x = x;
+    this.y = y;
+    this.collision = function(target) {
+      if (this.hp > 0) {
+      for (t = 0; t < target.length; t += 1) {
+        if(this.y < target[t].y + target[t].height && this.y + 10 > target[t].y && this.x + 10 >  target[t].x && this.x < target[t].x + target[t].width && target[t].col != 0) {
+        this.hp -= 1;
+        }
+        }
+      }
+    }
+    this.update = function() {
+        ctx = myGameArea.context;
+        if (this.hp > 0 & this.x >=0 & this.y >= 0 & this.x <= 480 & this.y <= 800) {
+        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        }
+    }
+} //구분해서 만들어야 할수도 있음.
+
+function enemy1(width, height, color, x, y, type, hp) {
+    this.type = type;
+    this.image = new Image();
+    this.image.src = color;
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;
+    this.hp = hp;
+    this.col = 1;
+    this.x = x;
+    this.y = y;
+    this.update = function() {
+        ctx = myGameArea.context;
+        if (this.hp > 0) {
+        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        }
+    }
+} //구분해서 만들어야 할수도 있음.
+
+
+function enemy2(width, height, color, x, y, type, hp) {
+    this.type = type;
+    this.image = new Image();
+    this.image.src = color;
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;
+    this.hp = hp;
+    this.col = 1;
+    this.x = x;
+    this.y = y;
+    this.update = function() {
+        ctx = myGameArea.context;
+        if (this.hp > 0) {
+        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        }
+    }
+} //구분해서 만들어야 할수도 있음.
+
+function enemy3(width, height, color, x, y, type, hp) {
+  this.image = new Image();
+  this.image.src = color;
+  this.width = width;
+  this.height = height;
+  this.speedX = 0;
+  this.speedY = 0;
+  this.rand = Math.random();
+  this.x = x;
+  this.y = y;
+  this.hp = hp;
+  this.col = 1;
+  this.dx;
+  if (this.rand < 0.5) {
+    this.dx = 2;
+  }
+  if (this.rand >= 0.5) {
+    this.dx = -2;
+  }
+  this.dy = 2;
+  this.update = function() {
+        if(this.x >= 440) {
+          this.dx = -this.dx;
+        }
+        if(this.x <= 0) {
+          this.dx = -this.dx;
+        }
+        this.x += this.dx;
+        this.y += this.dy;
+        ctx = myGameArea.context;
+        if (this.hp > 0) {
+        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+      }
+    }
+}// 벽에 튕기는 적 만들기
+
+function enemy4(width, height, color, x, y, type, hp) {
+  this.image = new Image();
+  this.image.src = color;
+  this.width = width;
+  this.height = height;
+  this.speedX = 0;
+  this.speedY = 0;
+  this.x = x;
+  this.y = y;
+  this.hp = hp;
+  this.col = 5;
+  this.dx = -3;
+  this.dy;
+  this.update = function() {
+        if(this.x >= 280) {
+          this.dx = -this.dx;
+        }
+        if(this.x <= 0) {
+          this.dx = -this.dx;
+        }
+        this.x += this.dx;
+        ctx = myGameArea.context;
+        if (this.hp > 0) {
+        ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+      }
+    }
+}// 벽에 튕기는 적 만들기
+
+function updateGameArea() {
+
+  var x,y;
+
+  if (stage == 1) {
+    myGameArea.clear();
+    if (myGameArea.x > 0 & myGameArea.y > 0) {
+      setTimeout(function(){stage = 2}, 500)
+      score = 0;
+      myGameArea.x = null;
+      myGameArea.y = null;
+    }
+    myGameArea.frameNo += 1;
+    startmenu.update();
+    function everyinterval(n) {
+        if ((myGameArea.frameNo / n) % 1 == 0) {return true;}
+        return false;
+     }
+   }
+
+
+   if (stage == 2) {
+   myGameArea.clear();
+   GBSgun.moveAngle = 0;
+   GBSgun.speed = 0;
+   myGameArea.frameNo += 1;
+
+   drawScore(); // 점수 그리기
+   back1.update();
+   back2.update();
+
+
+   function change(){
+   if (GBShp <= 0){
+     stage = 3;
+     myGameArea.x = null;
+     myGameArea.y = null;
+   }}
+   change(); // 게임오버 함수
+
+var skillper = Math.random();
+for (t = 0; t < skill.length; t += 1) {
+  if(skill[t]) {
+  skill[t].x = 40;
+  skill[t].y = 500 + 80*t;
+  skill[t].update();
+}
+}
+
+if (myGameArea.x > 150 & myGameArea.y > 1840 & myGameArea.x < 275 & myGameArea.y < 1975 & skill[0] != null) {
+  if (skill[0].skill == 1) {
+    GBShp = GBShp + 10;
+  }
+  if (skill[0].skill == 2) {
+    for (i = 0; i < myObstacles.length; i += 1) {
+      if (myObstacles[i].x != null) {
+        myObstacles[i].image.src = "boom.png";
+        score = score + 5;
+        explo1(i);
+      }
+    }
+    for (i = 0; i < myObstacles2.length; i += 1) {
+      if (myObstacles2[i] != 0) {
+        myObstacles2[i].image.src = "boom.png";
+        score = score + 7;
+        explo2(i);
+      }
+    }
+    for (i = 0; i < myObstacles3.length; i += 1) {
+      if (myObstacles3[i].x != null) {
+        myObstacles3[i].image.src = "boom.png";
+        score = score + 10;
+        explo3(i);
+      }
+    }
+  }
+  skill.splice(0,1);
+  myGameArea.x = null;
+  myGameArea.y = null;
+}
+if (myGameArea.x > 150 & myGameArea.y > 2140 & myGameArea.x < 275 & myGameArea.y < 2275 & skill[1] != null) {
+  if (skill[1].skill == 1) {
+    GBShp = GBShp + 10;
+  }
+  if (skill[1].skill == 2) {
+    for (i = 0; i < myObstacles.length; i += 1) {
+      if (myObstacles[i].x != null) {
+        myObstacles[i].image.src = "boom.png";
+        score = score + 5;
+        explo1(i);
+      }
+    }
+    for (i = 0; i < myObstacles2.length; i += 1) {
+      if (myObstacles2[i] != 0) {
+        myObstacles2[i].image.src = "boom.png";
+        score = score + 7;
+        explo2(i);
+      }
+    }
+    for (i = 0; i < myObstacles3.length; i += 1) {
+      if (myObstacles3[i].x != null) {
+        myObstacles3[i].image.src = "boom.png";
+        score = score +10;
+        explo3(i);
+      }
+    }
+  }
+  skill.splice(1,1);
+  myGameArea.x = null;
+  myGameArea.y = null;
+}
+//스킬을 사용해보자
+
+
+   function explo1(i) {
+     setTimeout(function(){myObstacles[i].hp = 0; myObstacles[i].x = null;
+     myObstacles[i].y = null; if (skillper < 0.05 & skill.length <2){
+       skill.push(new picture(40,40,"heal.jpg", 0 , 0, "image", 1))
+     } if (skillper > 0.99 & skill.length <2){
+       skill.push(new picture(40,40,"pung.jpg", 0 , 0, "image",2))
+     }}, 300);
+   }
+   function explo2(i) {
+     setTimeout(function(){myObstacles2[i].hp = 0; myObstacles2[i] = 0; if (skillper < 0.05 & skill.length <2){
+       skill.push(new picture(40,40,"heal.jpg", 0, 0, "image", 1))
+     } if (skillper > 0.99 & skill.length <2){
+       skill.push(new picture(40,40,"pung.jpg", 0 , 0, "image", 2))
+     }}, 300);
+   }
+   function explo3(i) {
+     setTimeout(function(){myObstacles3[i].hp = 0; myObstacles3[i].x = null;
+     myObstacles3[i].y = null; if (skillper < 0.05 & skill.length <2){
+       skill.push(new picture(40,40,"heal.jpg", 0, 0,"image", 1))
+     } if (skillper > 0.99 & skill.length <2){
+       skill.push(new picture(40,40,"pung.jpg", 0 , 0,"image", 2))
+     }}, 300);
+   }
+   function explo4(i) {
+     if (myObstacles4[i].col == 0) {
+     setTimeout(function(){myObstacles4[i].hp = 0; myObstacles4[i] = 0;}, 300); if (skillper < 0.01 & skill.length <2){
+       GBShp = GBShp + 10;
+     }
+   }
+   }
+// 총알에 적이 파괴되었을때.
+
+   function explo1Attack(i){
+     if (myObstacles[i].y == 399 & myObstacles[i].hp > 0 & myObstacles[i].col !=0) {
+       myObstacles[i].image.src = "boooom.png";
+       setTimeout(function(){myObstacles[i] = 0;  GBShp = GBShp - 5;} ,100);
+     }
+   }
+   function explo3Attack(i){
+     if (myObstacles3[i].y == 400 & myObstacles3[i].hp > 0 & myObstacles3[i].col !=0) {
+       myObstacles3[i].image.src = "boooom.png";
+       setTimeout(function(){myObstacles3[i] = 0;  GBShp = GBShp - 10;} ,100);
+     }
+   }
+//적이 자폭에 성공했을때
+
+   function explo2bullet(i){
+     if (myObstacles2bullet[i].y > 400 & myObstacles2bullet[i].hp > 0 & myObstacles2bullet[i].col !=0) {
+       myObstacles2bullet[i].image.src = "boooom.png";
+       myObstacles2bullet[i].col = 0;
+       setTimeout(function(){myObstacles2bullet[i] = 0;  GBShp = GBShp - 1;} ,70);
+     }
+   }
+   function explo4bullet(i){
+     if (myObstacles4bullet[i].y > 400 & myObstacles4bullet[i].hp > 0 & myObstacles4bullet[i].col !=0) {
+       myObstacles4bullet[i].image.src = "boooom.png";
+       myObstacles4bullet[i].col = 0;
+       setTimeout(function(){myObstacles4bullet[i] = 0;  GBShp = GBShp - 3;} ,70);
+     }
+   }
+//적이 무기로 공격할때
+
+
+
+   if (myGameArea.keys && myGameArea.keys[37])
+   {
+     GBSgun.moveAngle = -1;
+   }
+   if (myGameArea.keys && myGameArea.keys[39])
+   {
+     GBSgun.moveAngle = 1;
+   }
+   if (myGameArea.x > 900) {
+     GBSgun.moveAngle = 1;
+   }
+   if (myGameArea.x <= 900){
+    GBSgun.moveAngle = -1;
+   }
+//총의 각도 조절
+
+   var bullettime = 0;
+   if (everyinterval(10)) {
+     bullettime += 100;
+   }
+//불렛타임 설정
+
+   if (everyinterval(10))
+   {
+     gun1.push(new bullet(10, 10, "gun1.png", 230, 600, "image", 1));
+     angles.push(GBSgun.angle);
+     bullettime = 0;
+   }
+   for (i = 0; i < gun1.length; i += 1) {
+   gun1[i].x += 10*Math.sin(angles[i]);
+   gun1[i].y -= 10*Math.cos(angles[i]);
+   gun1[i].collision(myObstacles)
+   gun1[i].collision(myObstacles2)
+   gun1[i].collision(myObstacles3)
+   gun1[i].collision(myObstacles4)
+   gun1[i].update();
+   }
+ // 총알 그리기
+
+   if (myGameArea.frameNo == 1 || everyinterval(60)) {
+       x = Math.floor(Math.random()*(440))
+       y = 0
+       myObstacles.push(new enemy1(50, 85, "spaceship.png", x, y, "image", 1, 10));
+   }
+   for (i = 0; i < myObstacles.length; i += 1) {
+       myObstacles[i].y += 3;
+       explo1Attack(i);
+       if (myObstacles[i].hp > 0) {
+       for (t = 0; t < gun1.length; t += 1) {
+         if(gun1[t].y < myObstacles[i].y + myObstacles[i].height && gun1[t].y + gun1[t].height > myObstacles[i].y && gun1[t].x + gun1[t].width >  myObstacles[i].x && gun1[t].x < myObstacles[i].x + myObstacles[i].width) {
+         myObstacles[i].image.src = "boom.png";
+         var src = myObstacles[i].source;
+         explo1(i);
+         if (myObstacles[i].col != 0) {
+           score = score +5;
+           gun1[t].x = null;
+           gun1[t].y = null;
+           myObstacles[i].col = 0;
+         }
+         }
+         }
+         myObstacles[i].update();
+         }
+} // 첫번째 장애물
+
+var interval2 = 200;
+if (score > 100) {
+  interval2 = 100;
+}
+   if (score > 10 & everyinterval(interval2)) {
+       x = Math.floor(Math.random()*(440))
+       y = 0
+       myObstacles2.push(new enemy2(80, 65, "rocket.png", x, y, "image", 1));
+   }
+
+   for (i = 0; i < myObstacles2.length; i += 1) {
+     if (myObstacles2[i].y == 300){
+       myObstacles2[i].y = 300;
+   } else {
+       myObstacles2[i].y += 2;
+       if (score > 300) {
+         myObstacles2[i].y += 4;
+       }
+     }
+     if (myObstacles2[i].hp > 0) {
+     for (t = 0; t < gun1.length; t += 1) {
+       if(gun1[t].y < myObstacles2[i].y + myObstacles2[i].height && gun1[t].y + gun1[t].height > myObstacles2[i].y && gun1[t].x + gun1[t].width >  myObstacles2[i].x && gun1[t].x < myObstacles2[i].x + myObstacles2[i].width) {
+       myObstacles2[i].image.src = "boom.png";
+       explo2(i);
+       if (myObstacles2[i].col != 0) {
+         score = score +7;
+         gun1[t].x = null;
+         gun1[t].y = null;
+         myObstacles2[i].col = 0;
+       }
+       }
+       }
+      myObstacles2[i].update();
+       }
+   }
+
+   for (i = 0; i < myObstacles2.length; i += 1) {
+     if (myObstacles2[i].hp != 0 && myObstacles2[i].y == 300 && everyinterval(100)) {
+       myObstacles2bullet.push(new enemy1(10, 10, "gun1.png", myObstacles2[i].x, myObstacles2[i].y, "image", 1))
+     }
+   }
+
+   for (t = 0; t < myObstacles2bullet.length; t += 1) {
+     myObstacles2bullet[t].y += 3;
+     explo2bullet(t);
+     if (myObstacles2bullet[t] != 0){
+     myObstacles2bullet[t].update();
+   }
+   }
+//두번째 장애물
+
+   if (score > 300 & everyinterval(150)) {
+     x = Math.floor(Math.random()*(440))
+     y = 0
+     myObstacles3.push(new enemy3(70, 70, "spaceship2.png", x, y, "image", 5));
+   }
+   for (i = 0; i < myObstacles3.length; i += 1) {
+     explo3Attack(i);
+     if (myObstacles3[i].hp > 0) {
+     for (t = 0; t < gun1.length; t += 1) {
+       if(gun1[t].y < myObstacles3[i].y + myObstacles3[i].height && gun1[t].y + gun1[t].height > myObstacles3[i].y && gun1[t].x + gun1[t].width >  myObstacles3[i].x && gun1[t].x < myObstacles3[i].x + myObstacles3[i].width) {
+       myObstacles3[i].image.src = "boom.png";
+       explo3(i);
+       if (myObstacles3[i].col != 0) {
+         gun1[t].x = null;
+         gun1[t].y = null;
+         score = score +10;
+         myObstacles3[i].col = 0;
+       }
+       }
+       }
+       myObstacles3[i].update();
+       }
+   } // 세번째 장애물
+
+   if (score > 500 & myObstacles4.length == 0 & everyinterval(150)) {
+     myObstacles4.push(new enemy4(210, 190, "bigspaceship.png", 240, 0, "image", 5));
+   }
+   for (i = 0; i < myObstacles4.length; i += 1) {
+     if (myObstacles4[i].hp > 0) {
+       for (t = 0; t < gun1.length; t += 1) {
+         if(gun1[t].y < myObstacles4[i].y + myObstacles4[i].height && gun1[t].y + gun1[t].height > myObstacles4[i].y && gun1[t].x + gun1[t].width >  myObstacles4[i].x && gun1[t].x < myObstacles4[i].x + myObstacles4[i].width){
+           myObstacles4[i].col -= 1;
+           explo4(i);
+           if (myObstacles4[i].col != 0){
+             gun1[t].x = null;
+             gun1[t].y = null;
+           }
+           if (myObstacles4[i].col == 0){
+             myObstacles4[i].image.src = "boom.png"
+             score = score + 50;
+             gun1[t].x = null;
+             gun1[t].y = null;
+           }
+         }
+        }
+       myObstacles4[i].update();
+       }
+   }
+
+   if (myObstacles4.length !=0 && everyinterval(150)){
+     myObstacles4bullet.push(new enemy1(50, 50, "boom1.png", myObstacles4[0].x, myObstacles4[0].y, "image", 1))
+   }
+   for (t = 0; t < myObstacles4bullet.length; t += 1) {
+     myObstacles4bullet[t].y += 4;
+     explo4bullet(t);
+     if (myObstacles4bullet[t] != 0) {
+       myObstacles4bullet[t].update();
+     }
+   }
+// 네번째 장애물
+   backgroundlandscape.update();
+   GBShppic.update();
+   barrier.update();
+   bgGBS.update();
+   GBSgun.newPos();
+   GBSgun.update();
+   maxhp();
+   hpbar.width = GBShp*94/100
+   hpbar.x = 296 - GBShp*94/100
+   hpbar.update();
+   }
+
+   function everyinterval(n) {
+     if ((myGameArea.frameNo / n) % 1 == 0) {return true;}
+     return false;
+}
+
+    if (stage == 3) {
+      myGameArea.clear();
+      myGameArea.frameNo += 1;
+      if (myGameArea.x > 0 & myGameArea.y > 0) {
+        setTimeout(function(){stage = 1}, 500)
+        scroe = 0;
+        myGameArea.frameNo = 0;
+        GBShp = 100;
+        myGameArea.x = null;
+        myGameArea.y = null;
+        GBSgun.moveAngle = 0;
+        GBSgun.angle = 0;
+        gun1 = [];
+        angles = [];
+        myObstacles = [];
+        myObstacles2 = [];
+        myObstacles3 = [];
+        myObstacles4 = [];
+        myObstacles2bullet = [];
+        myObstacles4bullet = [];
+        skill = [];
+      }
+      gameover.update();
+      function everyinterval(n) {
+          if ((myGameArea.frameNo / n) % 1 == 0) {return true;}
+          return false;
+        }
+    }
+}
+
+
+
+</script>
+</body>
+</html>
